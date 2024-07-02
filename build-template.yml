@@ -1,0 +1,42 @@
+# build-template.yml
+
+parameters:
+  buildConfiguration: ''
+  projects: ''
+  allProjects: ''
+  dotNetVersion: ''
+
+jobs:
+  - job: BuildApplication
+    steps:
+      - task: UseDotNet@2
+        inputs:
+          version: $(dotNetVersion)
+          includePreviewVersions: true
+
+      - task: DotNetCoreCLI@2
+        displayName: Restore
+        inputs:
+          command: restore
+          projects: "$(allProjects)"
+
+      - task: DotNetCoreCLI@2
+        displayName: Build
+        inputs:
+          projects: "$(projects)"
+          arguments: "--configuration $(buildConfiguration)"
+
+      - task: DotNetCoreCLI@2
+        displayName: Publish
+        inputs:
+          command: publish
+          publishWebProjects: false
+          projects: "$(projects)"
+          arguments: "--configuration $(buildConfiguration) --output $(build.artifactstagingdirectory)"
+          zipAfterPublish: True
+
+      - task: PublishBuildArtifacts@1
+        displayName: "Publish Artifact"
+        inputs:
+          PathtoPublish: "$(build.artifactstagingdirectory)"
+          ArtifactName: $(build.buildnumber)

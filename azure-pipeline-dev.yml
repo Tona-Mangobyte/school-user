@@ -1,0 +1,62 @@
+# ASP.NET Core (.NET Framework)
+# Build and test ASP.NET Core projects targeting the full .NET Framework.
+# Add steps that publish symbols, save build artifacts, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
+
+trigger:
+- develop
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  buildConfiguration: 'Release'
+  ConnectedServiceName: 'bbf17c67-1f54-4f70-bdf2-2f10bbfb3f56'
+  WebAppKind: 'app'
+  WebAppName: 'SchoolUserDev'
+  projects: '**/SchoolUser.csproj'
+  allProjects: '**/*.csproj'
+  dotNetVersion: '6.0.x'
+
+stages:
+  - stage: Build
+    displayName: 'Build Application'
+    jobs:
+      - template: build-template.yml
+        parameters:
+          buildConfiguration: '$(buildConfiguration)'
+          projects: '$(projects)'
+          allProjects: '$(allProjects)'
+          dotNetVersion: '$(dotNetVersion)'
+
+  - stage: Deployment
+    displayName: 'Deploy to app service'
+    dependsOn: Build
+    jobs:
+      - job: 
+        steps:
+        
+          - task: DownloadBuildArtifacts@0
+            inputs:
+              buildType: 'current'
+              downloadType: 'single'
+              ArtifactName: $(build.buildnumber)
+              downloadPath: '$(System.ArtifactsDirectory)'
+          
+          - script: |
+              echo $(System.ArtifactsDirectory) 
+              cd $(System.ArtifactsDirectory) 
+              ls 
+              echo $(System.ArtifactsDirectory)/$(build.buildnumber) 
+              cd $(System.ArtifactsDirectory)/$(build.buildnumber) 
+              ls
+            
+          - task: AzureRmWebAppDeployment@3
+            displayName: 'Deploy Azure App Service'
+            inputs:
+              azureSubscription: '$(ConnectedServiceName)'
+              appType: '$(WebAppKind)'
+              WebAppName: '$(WebAppName)'
+              Package: '$(System.ArtifactsDirectory)/$(build.buildnumber)/SchoolUser.zip'
+              TakeAppOfflineFlag: true
+              JSONFiles: appsettings.json
